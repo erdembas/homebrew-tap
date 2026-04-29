@@ -1,9 +1,9 @@
 cask "runhq" do
   arch arm: "aarch64", intel: "x64"
 
-  version "0.8.0"
-  sha256 arm:   "b85d796c817735bafbd6a1833111b566504dbb8d2ec191306ddf1507b67ca9af",
-         intel: "67b307cb0b307d0c5dd8bc994185c485df0b12334f4d084a4401367eec3cb1e3"
+  version "0.9.0"
+  sha256 arm:   "44b451545b90c09ea585228f08ce3580020764144c2713e52a7b4cd674bdb95a",
+         intel: "faa59ab33736bd951300fe3ed7688f765ec11c6ccfd4cdffe21efcbb30c46ffb"
 
   url "https://github.com/erdembas/runhq/releases/download/v#{version}/RunHQ_#{version}_#{arch}.dmg",
       verified: "github.com/erdembas/runhq/"
