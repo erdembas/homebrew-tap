@@ -1,0 +1,33 @@
+name: Verify Kubepit cask
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test validation and credential isolation
+        run: node --test scripts/*.test.mjs
+      - name: Verify the published Kubepit cask in the temporary checkout
+        id: verify
+        run: node scripts/update-kubepit.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        if: steps.verify.outputs.verified == 'true'
+        with:
+          name: verified-kubepit-cask
+          path: Casks/kubepit.rb
+          if-no-files-found: ignore
+          retention-days: 7
