@@ -92,6 +92,7 @@ function fixture(version = "0.0.1", prerelease = true, withUpdater = false) {
   };
   const result = { files, release, manifest, cask };
   if (withUpdater) {
+    manifest.releaseNotes = `Kubepit ${version}\n\nRelease fixture notes. / Sürüm testi notları.`;
     const updaterSpecs = [
       ["macos", "arm64", "app.tar.gz", ["darwin-aarch64"]],
       ["macos", "x64", "app.tar.gz", ["darwin-x86_64"]],
@@ -145,7 +146,7 @@ function fixture(version = "0.0.1", prerelease = true, withUpdater = false) {
     const feed = Buffer.from(
       JSON.stringify({
         version,
-        notes: `Kubepit ${version}: signed desktop update. / İmzalı masaüstü güncellemesi.\n${manifest.releaseUrl}`,
+        notes: manifest.releaseNotes,
         pub_date: manifest.publishedAt,
         platforms,
       }),
@@ -266,6 +267,12 @@ test("rejects missing, duplicate, foreign, tampered and wrong-platform updater m
     (f) => {
       f.manifest.updater.publicKey = "not base64";
     },
+    (f) => {
+      f.manifest.releaseNotes = " ";
+    },
+    (f) => {
+      f.manifest.releaseNotes = "x".repeat(65537);
+    },
   ]) {
     const f = fixture("0.0.2", true, true);
     mutate(f);
@@ -297,6 +304,9 @@ test("checksummed updater feed cannot change release or platform mappings", () =
   for (const mutate of [
     (feed) => {
       feed.version = "9.9.9";
+    },
+    (feed) => {
+      feed.notes = "Unrelated release notes";
     },
     (feed) => {
       delete feed.platforms["linux-aarch64"];

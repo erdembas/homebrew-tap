@@ -335,6 +335,12 @@ export function validateRelease(
         metadata.artifacts.length === expected.length,
       "Incomplete updater artifact set",
     );
+    assert(
+      typeof manifest.releaseNotes === "string" &&
+        manifest.releaseNotes.trim().length > 0 &&
+        Buffer.byteLength(manifest.releaseNotes) <= 64 * 1024,
+      "Invalid updater release notes",
+    );
     const checkAsset = (asset, name) => {
       const published = publishedAsset(release, name);
       assert(
@@ -407,7 +413,7 @@ export function validateRelease(
       sha256: published.sha256,
       expected: {
         version,
-        notes: `Kubepit ${version}: signed desktop update. / İmzalı masaüstü güncellemesi.\n${manifest.releaseUrl}`,
+        notes: manifest.releaseNotes,
         pub_date: manifest.publishedAt,
         platforms,
       },
