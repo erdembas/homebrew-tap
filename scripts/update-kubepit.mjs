@@ -10,6 +10,7 @@ import {
   publishedAsset,
   compareVersions,
   validateRelease,
+  validateUpdaterFeed,
 } from "./kubepit-release.mjs";
 
 const redirectHosts = new Set([
@@ -124,6 +125,13 @@ export async function updateKubepit({
     }),
   );
   const verified = validateRelease(release, ...metadata);
+  if (verified.updater) {
+    const asset = verified.updater.published;
+    const bytes = await download(asset.browser_download_url, {
+      maxBytes: asset.size,
+    });
+    validateUpdaterFeed(verified.updater, bytes);
+  }
   // Hash historical assets lacking GitHub's digest field without executing them.
   for (const asset of verified.binaries.filter((item) => !item.digest)) {
     assert(

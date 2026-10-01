@@ -137,6 +137,58 @@ export function parseChecksums(bytes) {
   }
   return result;
 }
+// These are the only updater additions allowed alongside the 11 installers.
+export function updaterEntries(version) {
+  parseVersion(version);
+  return [
+    ["macos", "arm64", "app.tar.gz"],
+    ["macos", "x64", "app.tar.gz"],
+    ["linux", "arm64", "AppImage"],
+    ["linux", "x64", "AppImage"],
+    ["windows", "arm64", "nsis"],
+    ["windows", "x64", "nsis"],
+    ["windows", "x64", "msi"],
+  ].map(([platform, arch, format]) => {
+    const base = `${platform === "macos" ? "darwin" : platform}-${arch === "arm64" ? "aarch64" : "x86_64"}`;
+    return {
+      target: `${platform}-${arch}`,
+      platform,
+      arch,
+      format,
+      name: `Kubepit_${version}_${platform}_${arch}${format === "nsis" ? "-setup.exe" : `.${format}`}`,
+      platformKeys:
+        platform === "windows"
+          ? format === "nsis"
+            ? [base, `${base}-nsis`]
+            : [`${base}-msi`]
+          : [base],
+    };
+  });
+}
+export function validateUpdaterFeed(updater, bytes) {
+  validateDownloaded(updater.published, bytes);
+  assert(sha256(bytes) === updater.sha256, "Updater feed checksum mismatch");
+  const actual = JSON.parse(bytes.toString("utf8"));
+  const expected = updater.expected;
+  assert(
+    actual.version === expected.version &&
+      actual.pub_date === expected.pub_date &&
+      actual.notes === expected.notes,
+    "Updater feed release metadata mismatch",
+  );
+  assert(
+    actual.platforms &&
+      Object.keys(actual.platforms).length ===
+        Object.keys(expected.platforms).length,
+    "Incomplete updater feed platforms",
+  );
+  for (const [key, entry] of Object.entries(expected.platforms))
+    assert(
+      actual.platforms[key]?.url === entry.url &&
+        actual.platforms[key]?.signature === entry.signature,
+      `Updater feed platform mismatch: ${key}`,
+    );
+}
 // Compare this allowlisted template as bytes. A valid hash never authorizes
 // arbitrary Ruby, hooks, shell commands or Gatekeeper/quarantine changes.
 export function expectedCask(version, mac) {
@@ -226,14 +278,12 @@ export function validateRelease(
     "Incomplete installer manifest",
   );
   const sums = parseChecksums(checksumBytes);
-  assert(
-    sums.size === targets.length + 1,
-    "Incomplete or unexpected checksum entries",
-  );
+  const allowedChecksums = new Set(["kubepit.rb"]);
   const binaries = [],
     mac = {};
   for (const [platform, arch, format] of targets) {
     const name = `Kubepit_${version}_${platform}_${arch}${format === "nsis" ? "-setup.exe" : `.${format}`}`;
+    allowedChecksums.add(name);
     const matches = manifest.assets.filter((asset) => asset.name === name);
     assert(
       matches.length === 1,
@@ -266,6 +316,108 @@ export function validateRelease(
     binaries.push({ ...published, sha256: asset.sha256 });
     if (platform === "macos") mac[arch] = asset;
   }
+  let updater;
+  if (manifest.updater !== undefined) {
+    const metadata = manifest.updater;
+    assert(
+      metadata?.schemaVersion === 1 &&
+        typeof metadata.publicKey === "string" &&
+        metadata.publicKey.length > 0 &&
+        metadata.publicKey.length <= 4096 &&
+        /^[A-Za-z0-9+/]+={0,2}$/.test(metadata.publicKey) &&
+        Buffer.from(metadata.publicKey, "base64").toString("base64") ===
+          metadata.publicKey,
+      "Invalid updater metadata",
+    );
+    const expected = updaterEntries(version);
+    assert(
+      Array.isArray(metadata.artifacts) &&
+        metadata.artifacts.length === expected.length,
+      "Incomplete updater artifact set",
+    );
+    const checkAsset = (asset, name) => {
+      const published = publishedAsset(release, name);
+      assert(
+        asset?.name === name &&
+          asset.url === published.browser_download_url &&
+          asset.size === published.size &&
+          hashPattern.test(asset.sha256) &&
+          sums.get(name) === asset.sha256,
+        `Updater asset metadata mismatch: ${name}`,
+      );
+      if (published.digest)
+        assert(
+          published.digest === `sha256:${asset.sha256}`,
+          `Published updater checksum mismatch: ${name}`,
+        );
+      allowedChecksums.add(name);
+      return { ...published, sha256: asset.sha256 };
+    };
+    const platforms = {};
+    for (const entry of expected) {
+      const matches = metadata.artifacts.filter(
+        (asset) => asset.name === entry.name,
+      );
+      assert(
+        matches.length === 1,
+        `Missing or duplicate updater artifact: ${entry.name}`,
+      );
+      const artifact = matches[0];
+      for (const field of ["target", "platform", "arch", "format"])
+        assert(
+          artifact[field] === entry[field],
+          `Updater target mismatch: ${entry.name}`,
+        );
+      assert(
+        JSON.stringify(artifact.platformKeys) ===
+          JSON.stringify(entry.platformKeys),
+        "Updater platform keys mismatch",
+      );
+      const payload = checkAsset(artifact, entry.name);
+      const existing = binaries.find((asset) => asset.name === entry.name);
+      if (existing)
+        assert(
+          existing.sha256 === payload.sha256 && existing.size === payload.size,
+          "Updater and installer disagree",
+        );
+      else binaries.push(payload);
+      const signature = checkAsset(artifact.signature, `${entry.name}.sig`);
+      const content = artifact.signature.content;
+      assert(
+        typeof content === "string" &&
+          content.length > 0 &&
+          content.length <= 16384 &&
+          /^[A-Za-z0-9+/]+={0,2}$/.test(content) &&
+          Buffer.from(content, "base64").toString("base64") === content &&
+          Buffer.byteLength(content) === signature.size &&
+          sha256(content) === signature.sha256,
+        "Updater signature content mismatch",
+      );
+      binaries.push(signature);
+      for (const key of entry.platformKeys)
+        platforms[key] = { url: artifact.url, signature: content };
+    }
+    const published = checkAsset(metadata.feed, "latest.json");
+    assert(
+      published.size <= 1024 * 1024,
+      "Updater feed exceeds the size limit",
+    );
+    updater = {
+      published,
+      sha256: published.sha256,
+      expected: {
+        version,
+        notes: `Kubepit ${version}: signed desktop update. / İmzalı masaüstü güncellemesi.\n${manifest.releaseUrl}`,
+        pub_date: manifest.publishedAt,
+        platforms,
+      },
+    };
+  }
+  assert(
+    sums.size === allowedChecksums.size &&
+      [...sums.keys()].every((name) => allowedChecksums.has(name)),
+    "Incomplete or unexpected checksum entries",
+  );
   const caskHash = sha256(caskBytes);
   assert(
     caskHash === manifest.homebrew.sha256 &&
@@ -276,5 +428,5 @@ export function validateRelease(
     caskBytes.equals(Buffer.from(expectedCask(version, mac))),
     "Cask differs from the allowed template",
   );
-  return { version, binaries, caskBytes };
+  return { version, binaries, caskBytes, updater };
 }

@@ -1,77 +1,80 @@
-# Proposed bounded Kubepit updates / Önerilen sınırlı güncellemeler
+# Bounded Kubepit updates / Sınırlı Kubepit güncellemeleri
 
-This document is a review draft, not an executable workflow. The active manual
-workflow has read-only repository permissions and only produces a cask artifact.
-Enabling the following recurring repository writes requires explicit approval.
+The [Update Kubepit cask workflow](../.github/workflows/check-kubepit.yml) is enabled
+with explicit maintainer approval. It runs every six hours and on manual dispatch.
+Each run checks out `main`, executes the validation tests, and verifies the published
+release before considering any repository change.
 
-Bu belge inceleme taslağıdır; çalıştırılan bir iş akışı değildir. Mevcut elle
-başlatılan iş akışı depoya salt okunur erişir ve yalnızca cask çıktısı üretir.
-Aşağıdaki düzenli depo güncellemeleri etkinleştirilmeden önce açık onay gerekir.
+[Update Kubepit cask iş akışı](../.github/workflows/check-kubepit.yml), depo sahibinin
+açık onayıyla etkindir. Altı saatte bir veya elle başlatıldığında çalışır. Her çalışma
+`main` dalını alır, doğrulama testlerini çalıştırır ve depoda değişiklik yapmadan önce
+yayımlanmış sürümü doğrular.
 
-The proposed scope is only `Casks/kubepit.rb` in `erdembas/homebrew-tap`, every six
-hours and on manual dispatch. It uses that repository's short-lived `GITHUB_TOKEN`;
-no cross-repository PAT is required. The source is exclusively complete public
-releases of `erdembas/kubepit`: the newest complete stable release takes priority.
-Only when none exists may the newest complete prerelease be used (including the
-initial 0.0.1 release). A later beta never supersedes an available stable release.
-All existing validation
-remains mandatory. RunHQ and all other paths are excluded from staging. A rejected
-validation or non-fast-forward push fails the run without replacing remote data.
+The source is exclusively complete public releases of `erdembas/kubepit`. The newest
+complete stable release takes priority; only when none exists may the newest complete
+prerelease be used, including the initial 0.0.1 release. A later beta never supersedes
+an available stable release, and an existing cask is never downgraded.
 
-Önerilen kapsam, `erdembas/homebrew-tap` deposundaki yalnızca `Casks/kubepit.rb`
-dosyasını altı saatte bir ve elle başlatıldığında güncellemektir. Deponun kısa
-ömürlü `GITHUB_TOKEN` değeri kullanılır; başka depoya erişen PAT gerekmez. Dosyaları
-tamamlanmış en yeni kararlı sürüm önceliklidir; yalnızca böyle bir sürüm yokken
-en yeni tamamlanmış ön sürüm kullanılır. Sonraki betalar kararlı sürümün önüne geçmez. RunHQ
-ve diğer dosyalar commit'e alınmaz. Doğrulama veya ileri yönlü push başarısızsa
-iş akışı durur, uzak dosyaların üzerine yazılmaz.
+Kaynak yalnızca `erdembas/kubepit` deposunun dosyaları tamamlanmış herkese açık
+sürümleridir. En yeni kararlı sürüm önceliklidir; yalnızca böyle bir sürüm yoksa
+en yeni tamamlanmış ön sürüm kullanılır. Bu kural ilk 0.0.1 sürümünü de kapsar.
+Sonraki betalar mevcut kararlı sürümün önüne geçmez; cask eski sürüme indirilmez.
 
-Proposed changes to `.github/workflows/check-kubepit.yml`, after approval:
+The validator checks the exact repository/tag URLs, complete installer manifest,
+SHA256SUMS, GitHub asset digests, and the cask's exact bytes against an allowed
+template. It hashes downloaded installer bytes when GitHub does not supply a digest.
+Downloaded code is never executed, and no cask hook may bypass macOS quarantine or
+Gatekeeper. API credentials go only to `api.github.com` with redirects disabled;
+release downloads and their redirect hosts receive no credentials.
 
-```yaml
-name: Update Kubepit cask
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "17 */6 * * *"
-permissions:
-  contents: read
-concurrency:
-  group: kubepit-cask-update
-  cancel-in-progress: false
-jobs:
-  verify:
-    permissions:
-      contents: write
-```
+The historical release format permits exactly 11 installers and the cask in
+`SHA256SUMS`. Releases with updater metadata permit exactly 22 entries: those same
+files, two macOS updater archives, seven signature sidecars and `latest.json`.
+All seven updater payloads must match their prescribed target, format, URL and
+platform keys. Embedded signature text must match its sidecar's byte size and hash;
+the downloaded feed must match its published digest and the manifest's nine
+platform mappings. This checks release metadata integrity; the desktop release
+pipeline owns cryptographic updater signature verification. Neither format permits
+unrelated checksum entries.
 
-Keep the existing tests, verification and artifact steps. Change checkout to use
-`ref: main` and the default persisted token so the final bounded push can work.
-Append this final step; it cannot stage RunHQ, scripts or workflow files:
+Doğrulayıcı; depo ve sürüm adreslerini, eksiksiz paket manifestini, SHA256SUMS
+dosyasını, GitHub dosya özetlerini ve cask'in izin verilen şablonla birebir uyumunu
+kontrol eder. GitHub özet sağlamazsa indirilen paket baytlarını özetler. İndirilen
+kod çalıştırılmaz; macOS karantina veya Gatekeeper kontrolleri aşılmaz. API kimlik
+bilgileri yalnızca yönlendirme kapalıyken `api.github.com` adresine gönderilir;
+dosya indirmeleri ve yönlendirme sunucuları bu bilgileri almaz.
 
-```yaml
-- name: Commit only the verified Kubepit cask
-  shell: bash
-  run: |
-    if [ ! -f Casks/kubepit.rb ]; then exit 0; fi
-    git add -- Casks/kubepit.rb
-    if git diff --cached --quiet; then exit 0; fi
-    staged=$(git diff --cached --name-only)
-    if [ "$staged" != 'Casks/kubepit.rb' ]; then
-      echo 'Unexpected staged paths; refusing to commit.' >&2
-      exit 1
-    fi
-    git config user.name 'github-actions[bot]'
-    git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-    git commit -m 'Update Kubepit Homebrew cask'
-    git push origin HEAD:main
-```
+İlk sürüm biçiminde `SHA256SUMS` yalnızca 11 kurulum paketi ve cask içerir.
+Güncelleyici verisi içeren sürümlerde tam 22 kayıt kabul edilir: aynı dosyalar,
+iki macOS güncelleme arşivi, yedi imza dosyası ve `latest.json`. Yedi güncelleme
+paketinin hedefi, biçimi, adresi ve platform anahtarları beklenen değerlerle
+eşleşmelidir. Gömülü imza metni, imza dosyasının bayt boyutu ve özetiyle; indirilen
+akış dosyası ise yayımlanan özeti ve manifestteki dokuz platform eşleştirmesiyle
+uyumlu olmalıdır. Bu kontroller sürüm verisinin bütünlüğünü doğrular; güncelleyici
+imzalarının kriptografik doğrulaması masaüstü yayımlama akışına aittir. İki biçimde
+de ilgisiz checksum kayıtlarına izin verilmez.
 
-Repository branch protection may require a separate pull-request workflow. This
-proposal never changes branch protection, adds a PAT, force-pushes or bypasses an
-approval rule. Until explicitly enabled, maintainers can review and publish the
-verified cask using their normal repository process.
+Repository write permission belongs only to the update job and uses the tap's
+short-lived `GITHUB_TOKEN`; no cross-repository PAT is required. The final commit
+step runs only when the validator emits `verified=true`. It stages only
+`Casks/kubepit.rb`, exits when the diff is empty, and rejects any other staged path.
+RunHQ, scripts, workflow files, and all other files are excluded from automatic
+commits. A verified cask artifact is retained for seven days.
 
-Dal koruması varsa ayrı bir pull request süreci gerekebilir. Bu taslak dal korumasını
-değiştirmez, PAT eklemez, zorla push yapmaz ve onay kurallarını aşmaz. Etkinleştirilene
-kadar doğrulanan cask mevcut depo inceleme süreciyle yayımlanabilir.
+Depoya yazma yetkisi yalnızca güncelleme işine aittir ve tap'in kısa ömürlü
+`GITHUB_TOKEN` değeriyle kullanılır; başka depoya erişen PAT gerekmez. Commit adımı
+yalnızca doğrulayıcı `verified=true` üretirse çalışır. Sadece `Casks/kubepit.rb`
+dosyasını hazırlar, fark yoksa çıkar ve başka bir dosya hazırlanmışsa durur. RunHQ,
+betikler, iş akışı dosyaları ve diğer dosyalar otomatik commit kapsamı dışındadır.
+Doğrulanmış cask çıktısı yedi gün saklanır.
+
+Updates use a normal push to `main`. Concurrent runs are serialized. Failed
+validation or a non-fast-forward push fails the run; the workflow never force-pushes,
+changes branch protection, or bypasses an approval rule. If repository protections
+require pull requests, maintainers must review and publish the verified cask through
+that process instead.
+
+Güncellemeler `main` dalına normal push ile gönderilir; aynı anda başlayan çalışmalar
+sırayla yürütülür. Doğrulama veya ileri yönlü push başarısızsa iş akışı durur. Zorla
+push yapmaz, dal korumasını değiştirmez veya onay kurallarını aşmaz. Depo korumaları
+pull request gerektiriyorsa doğrulanmış cask bu inceleme süreciyle yayımlanmalıdır.

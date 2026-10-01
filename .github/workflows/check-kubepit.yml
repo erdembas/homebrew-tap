@@ -1,19 +1,28 @@
-name: Verify Kubepit cask
+name: Update Kubepit cask
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
 
 permissions:
   contents: read
+
+concurrency:
+  group: kubepit-cask-update
+  cancel-in-progress: false
 
 jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          ref: main
+          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,3 +40,19 @@ jobs:
           path: Casks/kubepit.rb
           if-no-files-found: ignore
           retention-days: 7
+      - name: Commit only the verified Kubepit cask
+        if: steps.verify.outputs.verified == 'true'
+        shell: bash
+        run: |
+          test -f Casks/kubepit.rb
+          git add -- Casks/kubepit.rb
+          if git diff --cached --quiet; then exit 0; fi
+          staged=$(git diff --cached --name-only)
+          if [ "$staged" != 'Casks/kubepit.rb' ]; then
+            echo 'Unexpected staged paths; refusing to commit.' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update Kubepit Homebrew cask'
+          git push origin HEAD:main

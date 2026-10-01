@@ -54,10 +54,15 @@ repository/tag URLs, manifest, SHA256SUMS, GitHub asset digests and the publishe
 cask bytes against an allowed template. Downloads are never executed. API
 credentials are never attached to release downloads or their redirect hosts.
 Only `Casks/kubepit.rb` can be updated; RunHQ is not changed.
+When a release includes desktop updater metadata, validation also checks its exact
+seven payloads, signature sidecars, platform mappings and `latest.json` against the
+same published checksums. Homebrew continues to install the two verified DMGs;
+cryptographic updater signature verification belongs to the desktop release pipeline.
 
-The manual **Verify Kubepit cask** workflow produces a reviewable artifact and does
-not commit or push. Scheduled automatic commits remain disabled; the bounded
-proposal is documented in [docs/kubepit-automation.md](docs/kubepit-automation.md).
+The **Update Kubepit cask** workflow runs every six hours and can also be started
+manually. After successful verification, it preserves a reviewable artifact and
+commits only an actual change to `Casks/kubepit.rb` on `main`. Its bounded write
+scope is documented in [docs/kubepit-automation.md](docs/kubepit-automation.md).
 
 Güncelleyici, dosyaları tamamlanmış en yeni kararlı sürümü seçer. Yalnızca böyle bir
 kararlı sürüm yokken en yeni tamamlanmış ön sürümü kullanır. Böylece ilk 0.0.1 sürümü
@@ -65,5 +70,10 @@ desteklenir; kararlı kurulumlar sonraki betalara geçirilmez. Adresleri, manife
 SHA256SUMS dosyasını, GitHub dosya özetlerini ve cask içeriğini doğrular. İndirilen
 dosyaları çalıştırmaz; API kimlik bilgilerini dosya indirmelerine veya yönlendirme
 sunucularına göndermez. Yalnızca `Casks/kubepit.rb` güncellenir, RunHQ değişmez.
-Elle başlatılan doğrulama iş akışı bir inceleme dosyası üretir; commit veya push
-yapmaz. Zamanlanmış otomatik commit özelliği henüz etkin değildir.
+Masaüstü güncelleme verisi içeren sürümlerde beklenen yedi paket, imza dosyaları,
+platform eşleştirmeleri ve `latest.json` da yayımlanan checksum değerleriyle
+doğrulanır. Homebrew iki doğrulanmış DMG paketini kullanmaya devam eder;
+güncelleyici imzalarının kriptografik doğrulaması masaüstü yayımlama akışına aittir.
+**Update Kubepit cask** iş akışı altı saatte bir çalışır; elle de başlatılabilir.
+Doğrulama başarılı olursa inceleme çıktısını saklar ve yalnızca `Casks/kubepit.rb`
+dosyasında gerçek bir değişiklik varsa `main` dalına commit edip gönderir.
