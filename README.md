@@ -55,7 +55,7 @@ cask bytes against an allowed template. Downloads are never executed. API
 credentials are never attached to release downloads or their redirect hosts.
 Only `Casks/kubepit.rb` can be updated; RunHQ is not changed.
 When a release includes desktop updater metadata, validation also checks its exact
-seven payloads, signature sidecars, platform mappings and `latest.json` against the
+11 payloads, signature sidecars, platform mappings and `latest.json` against the
 same published checksums. Homebrew continues to install the two verified DMGs;
 cryptographic updater signature verification belongs to the desktop release pipeline.
 
@@ -70,7 +70,7 @@ desteklenir; kararlı kurulumlar sonraki betalara geçirilmez. Adresleri, manife
 SHA256SUMS dosyasını, GitHub dosya özetlerini ve cask içeriğini doğrular. İndirilen
 dosyaları çalıştırmaz; API kimlik bilgilerini dosya indirmelerine veya yönlendirme
 sunucularına göndermez. Yalnızca `Casks/kubepit.rb` güncellenir, RunHQ değişmez.
-Masaüstü güncelleme verisi içeren sürümlerde beklenen yedi paket, imza dosyaları,
+Masaüstü güncelleme verisi içeren sürümlerde beklenen 11 paket, imza dosyaları,
 platform eşleştirmeleri ve `latest.json` da yayımlanan checksum değerleriyle
 doğrulanır. Homebrew iki doğrulanmış DMG paketini kullanmaya devam eder;
 güncelleyici imzalarının kriptografik doğrulaması masaüstü yayımlama akışına aittir.

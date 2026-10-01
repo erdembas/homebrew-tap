@@ -144,7 +144,11 @@ export function updaterEntries(version) {
     ["macos", "arm64", "app.tar.gz"],
     ["macos", "x64", "app.tar.gz"],
     ["linux", "arm64", "AppImage"],
+    ["linux", "arm64", "deb"],
+    ["linux", "arm64", "rpm"],
     ["linux", "x64", "AppImage"],
+    ["linux", "x64", "deb"],
+    ["linux", "x64", "rpm"],
     ["windows", "arm64", "nsis"],
     ["windows", "x64", "nsis"],
     ["windows", "x64", "msi"],
@@ -161,7 +165,9 @@ export function updaterEntries(version) {
           ? format === "nsis"
             ? [base, `${base}-nsis`]
             : [`${base}-msi`]
-          : [base],
+          : platform === "linux" && format !== "AppImage"
+            ? [`${base}-${format}`]
+            : [base],
     };
   });
 }

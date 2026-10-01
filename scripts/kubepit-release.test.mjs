@@ -97,7 +97,11 @@ function fixture(version = "0.0.1", prerelease = true, withUpdater = false) {
       ["macos", "arm64", "app.tar.gz", ["darwin-aarch64"]],
       ["macos", "x64", "app.tar.gz", ["darwin-x86_64"]],
       ["linux", "arm64", "AppImage", ["linux-aarch64"]],
+      ["linux", "arm64", "deb", ["linux-aarch64-deb"]],
+      ["linux", "arm64", "rpm", ["linux-aarch64-rpm"]],
       ["linux", "x64", "AppImage", ["linux-x86_64"]],
+      ["linux", "x64", "deb", ["linux-x86_64-deb"]],
+      ["linux", "x64", "rpm", ["linux-x86_64-rpm"]],
       ["windows", "arm64", "nsis", ["windows-aarch64", "windows-aarch64-nsis"]],
       ["windows", "x64", "nsis", ["windows-x86_64", "windows-x86_64-nsis"]],
       ["windows", "x64", "msi", ["windows-x86_64-msi"]],
@@ -223,13 +227,19 @@ test("accepts complete prerelease with exact cask bytes and both Mac architectur
   assert.equal(result.binaries.length, 11);
   assert.deepEqual(result.caskBytes, f.cask);
 });
-test("accepts the exact updater extension: 24 files, 22 checksums and nine feed platforms", () => {
+test("accepts the exact updater extension: 28 files, 26 checksums and 13 feed platforms", () => {
   const f = fixture("0.0.2", true, true);
   const result = validate(f);
-  assert.equal(f.files.size, 24);
-  assert.equal(parseChecksums(f.files.get("SHA256SUMS")).size, 22);
-  assert.equal(result.binaries.length, 20);
-  assert.equal(Object.keys(result.updater.expected.platforms).length, 9);
+  assert.equal(f.files.size, 28);
+  assert.equal(parseChecksums(f.files.get("SHA256SUMS")).size, 26);
+  assert.equal(result.binaries.length, 24);
+  const platforms = result.updater.expected.platforms;
+  assert.equal(Object.keys(platforms).length, 13);
+  for (const arch of ["aarch64", "x86_64"]) {
+    assert.match(platforms[`linux-${arch}`].url, /\.AppImage$/);
+    assert.match(platforms[`linux-${arch}-deb`].url, /\.deb$/);
+    assert.match(platforms[`linux-${arch}-rpm`].url, /\.rpm$/);
+  }
   validateUpdaterFeed(result.updater, f.files.get("latest.json"));
 });
 test("rejects missing, duplicate, foreign, tampered and wrong-platform updater metadata", () => {
@@ -316,6 +326,10 @@ test("checksummed updater feed cannot change release or platform mappings", () =
     },
     (feed) => {
       feed.platforms["darwin-aarch64"].signature = "dGFtcGVyZWQ=";
+    },
+    (feed) => {
+      feed.platforms["linux-aarch64-deb"].url =
+        feed.platforms["linux-aarch64"].url;
     },
   ]) {
     const f = fixture("0.0.2", true, true);

@@ -28,12 +28,13 @@ Gatekeeper. API credentials go only to `api.github.com` with redirects disabled;
 release downloads and their redirect hosts receive no credentials.
 
 The historical release format permits exactly 11 installers and the cask in
-`SHA256SUMS`. Releases with updater metadata permit exactly 22 entries: those same
-files, two macOS updater archives, seven signature sidecars and `latest.json`.
-All seven updater payloads must match their prescribed target, format, URL and
+`SHA256SUMS`. Releases with updater metadata permit exactly 26 entries: those same
+files, two macOS updater archives, 11 signature sidecars and `latest.json`.
+All 11 updater payloads must match their prescribed target, format, URL and
 platform keys. Embedded signature text must match its sidecar's byte size and hash;
-the downloaded feed must match its published digest and the manifest's nine
-platform mappings. This checks release metadata integrity; the desktop release
+the downloaded feed must match its published digest and the manifest's 13
+platform mappings, including distinct Linux DEB/RPM and Windows NSIS/MSI keys.
+This checks release metadata integrity; the desktop release
 pipeline owns cryptographic updater signature verification. Neither format permits
 unrelated checksum entries.
 
@@ -45,12 +46,13 @@ bilgileri yalnızca yönlendirme kapalıyken `api.github.com` adresine gönderil
 dosya indirmeleri ve yönlendirme sunucuları bu bilgileri almaz.
 
 İlk sürüm biçiminde `SHA256SUMS` yalnızca 11 kurulum paketi ve cask içerir.
-Güncelleyici verisi içeren sürümlerde tam 22 kayıt kabul edilir: aynı dosyalar,
-iki macOS güncelleme arşivi, yedi imza dosyası ve `latest.json`. Yedi güncelleme
+Güncelleyici verisi içeren sürümlerde tam 26 kayıt kabul edilir: aynı dosyalar,
+iki macOS güncelleme arşivi, 11 imza dosyası ve `latest.json`. 11 güncelleme
 paketinin hedefi, biçimi, adresi ve platform anahtarları beklenen değerlerle
 eşleşmelidir. Gömülü imza metni, imza dosyasının bayt boyutu ve özetiyle; indirilen
-akış dosyası ise yayımlanan özeti ve manifestteki dokuz platform eşleştirmesiyle
-uyumlu olmalıdır. Bu kontroller sürüm verisinin bütünlüğünü doğrular; güncelleyici
+akış dosyası ise yayımlanan özeti ve manifestteki 13 platform eşleştirmesiyle
+uyumlu olmalıdır. Linux DEB/RPM ve Windows NSIS/MSI paketlerinin ayrı anahtarları
+vardır. Bu kontroller sürüm verisinin bütünlüğünü doğrular; güncelleyici
 imzalarının kriptografik doğrulaması masaüstü yayımlama akışına aittir. İki biçimde
 de ilgisiz checksum kayıtlarına izin verilmez.
 
