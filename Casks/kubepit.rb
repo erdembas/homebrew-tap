@@ -1,9 +1,9 @@
 cask "kubepit" do
   arch arm: "arm64", intel: "x64"
 
-  version "0.0.5"
-  sha256 arm:   "8b68867cfe0bd08f4b0f4426b1a223cf93399fe1d37a8b27c1311baab71bcdf2",
-         intel: "1e3de434e654a648369698bd0dcc6fe0086b6dbe8b7fe2bc41e61b58f41e0723"
+  version "0.0.6"
+  sha256 arm:   "d3eec6d1dfd8fde755bccd83715bff71ee569920e3bb6eacda965ad883d4cc70",
+         intel: "43e8df885f7cafeda0496074c97436e7a1cb63b0de94e82559ee686fd55206cf"
 
   url "https://github.com/erdembas/kubepit/releases/download/v#{version}/Kubepit_#{version}_macos_#{arch}.dmg",
       verified: "github.com/erdembas/kubepit/"
